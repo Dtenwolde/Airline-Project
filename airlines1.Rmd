@@ -20,7 +20,7 @@ require(readr) # v0.2.2
 library(plotly)
 
 get_multiple_years <- function(airlines_list) {
-  airlines <- fread("airlines.csv") # Get the info for all airlines
+  airlines <- fread("data/airlines.csv") # Get the info for all airlines
   names(airlines) <- c("Airline", "Name", "Alias", "IATA", "ICAO", "Callsign", "Country", "Active")
   
   df <- data.frame(ymd("2020-01-01"), "A", "A", 1) # We have a dummy row to set the correct data types. 

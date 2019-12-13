@@ -18,6 +18,7 @@ library(tidyr)
 library(ggplot2)
 library(gganimate)
 library(scales)
+library(plotly)
 library(lubridate)
 ```
 
@@ -51,7 +52,7 @@ We have also looked at the performance of different American airports, especiall
 
 ## Related Work
 My inspiration for this project comes from an article I have recently come across which had the following airline rating:
-![Airlines Ranking 2019 https://wallethub.com/edu/best-airlines/20916/](2019-airline-performance-v2.png){width=50% height=50%}
+![Airlines Ranking 2019 https://wallethub.com/edu/best-airlines/20916/](figures/2019-airline-performance-v2.png){width=50% height=50%}
 
 This ranking is done by Wallethub (https://wallethub.com/edu/best-airlines/20916/) focuses on ticket prices, reliabilty, In-flight comfort and other areas. An area that was not researched was the financial state of each airline and in particular how employees are treated. We want to see if we can replicate these results for the year 2018. Another thing is that this research focused on 2018, while we will also look into the history of these airlines. 
 
@@ -109,3 +110,7 @@ We started this project with the question whether we can find the best and worst
 American Airlines and United Airlines battle it out for third place and it is difficult to name one of these airlines as a clear winner. American Airlines scores better in customer reviews, but worse in the percentage of cancelled flights. United Airlines also outperforms American Airlines when it comes to the employee treatment, offering better wages and salaries and better pension and benefit packages over the last couple of years. So one could say that United Airlines takes third place, but only marginally. 
 
 The title of best airline goes between Alaska Airlines and Delta Air Lines. Both airlines have similar customer review scores, Alaska has a slightly better on-time performance, but relatively more cancelled flights. Delta offers a better average annual wage and salary. Both airlines offer a similar pension and benefit package. The airlines are closely matched and thus we will both name them 'The best Airline of America'.
+
+<iframe width="560" height="315" src="https://youtu.be/kFgBYn8bkSE" frameborder="0" allowfullscreen></iframe>
+
+If the embedded video does not load follow this link: https://youtu.be/kFgBYn8bkSE 

@@ -1,6 +1,6 @@
 get_airline_data_list <- function(airline_list ) { # Get the info per airline
   library(dplyr)
-  airlines <- fread("airlines.csv")
+  airlines <- fread("data/airlines.csv")
   names(airlines) <- c("Airline", "Name", "Alias", "IATA", "ICAO", "Callsign", "Country", "Active")
   
   return_df = data.frame()

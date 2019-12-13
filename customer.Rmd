@@ -159,7 +159,7 @@ As can be seen from the plot shown above, it is clear Alaska Airlines and Delta 
 
 Here we see that Frontier Airlines is by far the worst scoring airline with a review score of 34 for In-Flight Entertainment and 29 for WiFi. However these scores can be explained by the business philosphy that Frontier Airlines has adopted. They want to offer the cheapest flights possible and thus try to cut down on things such as In-Flight Entertainment and WiFi. 
 
-![Comment from Frontier Airlines, source: https://faq.flyfrontier.com/help/do-you-offer-wi-fi-tv-movies-or-other-in-flight-entertainment](frontierwifi.png)
+![Comment from Frontier Airlines, source: https://faq.flyfrontier.com/help/do-you-offer-wi-fi-tv-movies-or-other-in-flight-entertainment](figures/frontierwifi.png)
 
 Delta and Alaska have the highest score. Delta offers free Wifi (https://www.delta.com/content/www/en_US/traveling-with-us/onboard-services/delta-studio/in-flight-wi-fi.html) and it seems to do them well in the review scores. 
 
@@ -181,7 +181,7 @@ library(plotly)
 library(ggplot2)
 
 get_airlines_year <- function(airline, year) {
-  airlines <- fread("airlines.csv") # Load the airlines using fread since it is faster than read.csv 
+  airlines <- fread("data/airlines.csv") # Load the airlines using fread since it is faster than read.csv 
   names(airlines) <- c("Airline", "Name", "Alias", "IATA", "ICAO", "Callsign", "Country", "Active")
   airline_to_use <- airlines %>% filter(Name == airline)
 

@@ -5,7 +5,7 @@ date: "12/11/2019"
 output: html_document
 ---
 
-```{r full_time_empl_equiv}
+```{r full_time_empl_equiv, echo=FALSE, warning = FALSE, message = FALSE}
 library(RCurl)
 library(readxl)
 library(dplyr)
@@ -34,7 +34,7 @@ full_time_plotly <- ggplotly(full_time_plot, dynamicTicks = TRUE, tooltip = "tex
 
 Taking a look at the Total Full-Time Employee equivalent graph, we see a major disparity between the major airlines (American Airlines, Delta Air Lines and United Airlines) and Alaska Airlines and Frontier Airlines. This should not come as a suprise, but it makes a good indication of how much bigger the major airlines are. We also see each major airline increasing this number, Delta in 2010, United in 2012 and America in 2015. This directly corresponds to the merges that each airline made which have been mentioned in an earlier graph. 
 
-```{r}
+```{r wages_salary, echo=FALSE, warning = FALSE, message = FALSE}
 library(RCurl)
 library(readxl)
 library(dplyr)
@@ -69,7 +69,7 @@ annual_wages_plotly <- ggplotly(annual_wages_plot, dynamicTicks = TRUE, tooltip 
 
 Over time we see that all airlines except Frontier Airlines have had similar annual wages and salaries. Only since 2015 has Frontier closed the wage and salary gap that has existed since the airline started. The highest average wages and salaries can be found at Delta Air Lines and United Airlines.
 
-```{r pension_benefit_package}
+```{r pension_benefit_package, echo=FALSE, warning = FALSE, message = FALSE}
 library(RCurl)
 library(readxl)
 library(dplyr)
@@ -102,7 +102,7 @@ pension_benefit_plotly <- ggplotly(pension_benefit_plot, dynamicTicks = TRUE, to
 
 The graph above shows a fairly similar picture as the graph before. All airlines are comparable to each in terms of the average pension and benefit package, except Frontier who has been significantly behind since the beginning. Whereas Frontier has closed the wages and salaries gap with the other airlines, it does not seem likely to close the pension and benefit package gap in the foreseeable future. 
 
-```{r asm_per_dollar}
+```{r asm_per_dollar, echo=FALSE, warning = FALSE, message = FALSE}
 library(RCurl)
 library(readxl)
 library(dplyr)
