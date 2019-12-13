@@ -8,10 +8,10 @@ https://drive.google.com/file/d/1JvCQNHQDW-f_R-Yc-leU9jWbI1iksG4W/view?usp=shari
 
 Extracting the data should create a data folder in which the data is located
 The file structure should look like: 
-project.Rmd
-airport.Rmd
-data 
-  |__ 2019.csv
-      2018.csv
-      ...
+project.Rmd  
+airport.Rmd  
+data  
+    |__ 2019.csv  
+        2018.csv  
+      ...  
     
