@@ -1,0 +1,238 @@
+---
+title: "Customer Satisfaction"
+author: "Daniel ten Wolde"
+date: "12/9/2019"
+output: html_document
+---
+
+## Customer Reviews
+```{r customer, echo=FALSE, warning = FALSE, message = FALSE}
+source("utilFunctions.R")
+library(plotly)
+library(dplyr)
+require(data.table) # v1.9.7
+require(feather) # v0.0.0.9000
+require(readr) # v0.2.2
+library(tidyr)
+library(ggplot2)
+library(gganimate)
+library(rvest)
+library(lubridate)
+
+get_review_airline <- function(airline_code, airline) {
+  url <- paste("https://www.flightradar24.com/data/airlines", airline_code, "reviews", sep="/")
+  # Every review page is the original url/ + "IATA code" + "-" + "ICAO code" / reviews
+  webpage <- read_html(url)
+
+  number <- webpage %>% html_nodes(xpath = '//*[@id="rating-overall-big"]') %>% html_attrs() %>% unlist()
+  overall_rating <- as.numeric(number["data-value"]) # Get the overall rating
+  
+  num_of_reviews <- webpage %>% 
+    html_nodes(xpath = '//*[@id="cnt-data-content"]/div/div[2]/div/aside[1]/div/div[1]/div[2]/p/span') %>% 
+    html_text() %>% 
+    as.numeric() # Get the number of reviews
+  
+  rating_df <- data.frame("variable" = 'Overall rating', "value" = overall_rating)
+  ratings <- webpage %>% html_nodes(xpath = '//*[@id="cnt-data-content"]/div/div[2]/div/aside[1]/div/ul/li') # Get the specific ratings
+  ratings_list <- ratings %>% html_text()
+  ratings_list_split <- strsplit(ratings_list, split="%")
+  ratings_list_split_unlist <- unlist(ratings_list_split)
+  df <- data.frame(variable=ratings_list_split_unlist[seq(1,9,2)], value=as.numeric(ratings_list_split_unlist[seq(2,10,2)]))
+  df$variable <- substr(df$variable,2,nchar(as.character(df$variable))-3)
+  df <- rbind(rating_df, df)
+  df$Airline <- airline
+  df$Num_reviews <- num_of_reviews 
+  return(df)
+}
+
+airlines_to_scrape <- function(airlines_list) {
+  airlines_to_scrape <- get_airline_data_list(airlines_list) # Get the info of all airlines, function found in utilFunctions.R
+  airlines_to_scrape$code <- paste(tolower(airlines_to_scrape$IATA), tolower(airlines_to_scrape$ICAO), sep="-")
+  
+  scraped_data <- data.frame() 
+  
+  
+  for(i in 1:nrow(airlines_to_scrape)) { # Scrape the web page for every airline
+    scraped_data <- rbind(scraped_data, get_review_airline(airlines_to_scrape[i,ncol(airlines_to_scrape)], airlines_to_scrape[i,2])) # Airline code and airline name
+  }
+  
+  return(scraped_data)
+}
+
+plot_data <- function(airlines_list) {
+  color_table <- tibble(
+  airlines = c("Alaska Airlines", "American Airlines", "Delta Air Lines", "Frontier Airlines", "United Airlines"),
+  colors = c("#00385F", "#d81830", "#9B1631", "#248168", "#005DAA")
+  )
+  
+  
+  review_data <- airlines_to_scrape(airlines_list)
+  review_data$Airline <- factor(review_data$Airline, levels = color_table$airlines) # Set colors to the airline
+  
+  review_wifi_entertainment <- review_data %>% filter(variable == "WiFi" | variable == "In-Flight entertainment")
+  
+  review_boarding <- review_data %>% filter(variable == "Boarding/deplaning")
+  
+  plot <- ggplot(review_data, aes(x=Airline, # Main plot
+                                  y = value, 
+                                  fill = Airline, 
+                                  text = paste0("Airline: ", Airline, "<br>", # Set the info for the hover over
+                                                "Score: ", value, "<br>", 
+                                                "Number of reviews: ", Num_reviews))) + 
+  geom_bar(stat="identity", position = position_dodge()) +
+  scale_fill_manual(values = color_table$colors) +
+  facet_wrap(. ~ variable) + # Split on variable
+  labs(y = "Percentage", 
+       title="Overall Customer Review Scores", 
+       subtitle="Gathered from Flightradar24 reviews") +
+  theme_classic() + 
+  theme(axis.title.x=element_blank(), # Hide axis label
+        axis.text.x=element_blank(),
+        axis.ticks.x=element_blank(),
+        text = element_text(size=11))
+                
+  wifi_plot <- ggplot(review_wifi_entertainment, aes(x=Airline, # Wifi and In-Flight Entertainment plot
+                                                     y=value, 
+                                                     fill = Airline, 
+                                                     text = paste0("Airline: ", Airline, "<br>", # Set the info for the hover over
+                                                                   "Score: ", value, "<br>",
+                                                                   "Number of reviews: ", Num_reviews))) + 
+    geom_bar(stat="identity", position = position_dodge()) +
+    labs(y = "Percentage", 
+      title="Wifi and In-Flight Entertainment Review Scores", 
+      subtitle="Gathered from Flightradar24 reviews") +
+    theme_classic() +
+    scale_fill_manual(values = color_table$colors) +
+    facet_wrap(. ~ variable) + # Split on variable
+    theme(axis.title.x=element_blank(),
+      axis.text.x=element_blank(),
+      axis.ticks.x=element_blank(),
+      text = element_text(size=11))
+  
+  boarding_plot <- ggplot(review_boarding, aes(x=Airline, # Boarding and deplaning plot
+                                               y=value, fill = Airline, 
+                                               group = Airline, 
+                                               text = paste0("Airline: ", Airline, "<br>", # Set the info for the hover over
+                                                             "Score: ", value, "<br>",
+                                                             "Number of reviews: ", Num_reviews))) +
+    geom_bar(stat="identity", position = position_dodge()) +
+    labs(y = "Percentage", title="Boarding/Deplaning review scores", subtitle="Gathered from Flightradar24 reviews") +
+    theme_classic() +
+    scale_fill_manual(values = color_table$colors) +
+    theme(axis.title.x=element_blank(),
+          axis.text.x=element_blank(),
+          axis.ticks.x=element_blank(),
+          text = element_text(size=11))
+  return(list("plot" = plot, 'wifi_plot' = wifi_plot, "boarding_plot" = boarding_plot)) # Return all plots
+}
+
+airlines_list <- c("American Airlines", "Alaska Airlines", "Delta Air Lines", "United Airlines", "Frontier Airlines")
+
+plots_customer <- plot_data(airlines_list)
+
+main_plot <- ggplotly(plots_customer$plot, height = 800, width = 800, tooltip = "text") %>% # Convert all plots to plotly to make them interactive. 
+  animation_opts(frame = 200, easing = "linear", redraw = FALSE) %>% 
+  config(displayModeBar = F) %>% 
+  layout(xaxis=list(fixedrange=TRUE)) %>% 
+  layout(yaxis=list(fixedrange=TRUE))
+
+wifi_plot <- ggplotly(plots_customer$wifi_plot, height = 400, width = 800, tooltip = "text") %>%
+  animation_opts(frame = 200, easing = "linear", redraw = FALSE) %>% 
+  config(displayModeBar = F) %>% 
+  layout(xaxis=list(fixedrange=TRUE)) %>% 
+  layout(yaxis=list(fixedrange=TRUE))
+
+boarding_plot <- ggplotly(plots_customer$boarding_plot, height = 400, width = 800, tooltip = "text") %>%
+  animation_opts(frame = 200, easing = "linear", redraw = FALSE) %>% 
+  config(displayModeBar = F) %>% 
+  layout(xaxis=list(fixedrange=TRUE)) %>% 
+  layout(yaxis=list(fixedrange=TRUE))
+```
+
+## Overall Customer Review Scores
+
+`r main_plot`
+
+As can be seen from the plot shown above, it is clear Alaska Airlines and Delta Air Lines have the highest overall customer reviews. On the lower end we find Frontier Airlines. It seems that Frontier customers fly at a lower cost, but this also impacts their satisfaction. Thus we might conclude that a cheaper flight is not always worth it. The difference becomes even more apparent if we take a look at the WiFi and In-Flight Entertainment reviews of all airlines. 
+
+`r wifi_plot` 
+
+Here we see that Frontier Airlines is by far the worst scoring airline with a review score of 34 for In-Flight Entertainment and 29 for WiFi. However these scores can be explained by the business philosphy that Frontier Airlines has adopted. They want to offer the cheapest flights possible and thus try to cut down on things such as In-Flight Entertainment and WiFi. 
+
+![Comment from Frontier Airlines, source: https://faq.flyfrontier.com/help/do-you-offer-wi-fi-tv-movies-or-other-in-flight-entertainment](frontierwifi.png)
+
+Delta and Alaska have the highest score. Delta offers free Wifi (https://www.delta.com/content/www/en_US/traveling-with-us/onboard-services/delta-studio/in-flight-wi-fi.html) and it seems to do them well in the review scores. 
+
+## Boarding and Deplaning reviews
+
+`r boarding_plot`
+
+With Boarding and Deplaning we see a similar trend where Alaska Airlines and Delta Air Lines are at the top. Next to that we also see Frontier Airlines having the lowest score, again. We will look into the departure and arrival delays to see if we can spot the same trend. We might expect frontier to have more delay on average since that would justify the lower review scores. 
+
+```{r airline_data, echo=FALSE, warning = FALSE, message = FALSE}
+library(dplyr)
+library(lubridate)
+require(data.table) # v1.9.7
+require(feather) # v0.0.0.9000
+require(readr) # v0.2.2
+library(ggplot2)
+library(scales)
+library(plotly)
+library(ggplot2)
+
+get_airlines_year <- function(airline, year) {
+  airlines <- fread("airlines.csv") # Load the airlines using fread since it is faster than read.csv 
+  names(airlines) <- c("Airline", "Name", "Alias", "IATA", "ICAO", "Callsign", "Country", "Active")
+  airline_to_use <- airlines %>% filter(Name == airline)
+
+  data_year <- fread(paste("data", paste(year, "csv", sep="."), sep="/"))
+
+  if(year > 2008) { # The csv files change structure starting from 2009 (OP_CARRIER in 2009 till now vs. UniqueCarrier in 1987 till 2008)
+    airline_year <- data_year %>% filter(OP_CARRIER == airline_to_use$IATA)
+  
+    airline_year$Date <- ymd(paste(airline_year$YEAR, airline_year$MONTH, airline_year$DAY_OF_MONTH, sep="-")) # Make date column
+    airline_year$YEAR <- NULL
+    airline_year$MONTH <- NULL
+    airline_year$DAY_OF_MONTH <- NULL
+  } else {
+    airline_year <- data_year %>% filter(UniqueCarrier == airline_to_use$IATA)
+    
+    airline_year$Date <- ymd(paste(airline_year$Year, airline_year$Month, airline_year$DayofMonth, sep="-")) 
+    airline_year$Year <- NULL
+    airline_year$Month <- NULL
+    airline_year$DayofMonth <- NULL
+    
+  }
+    
+  airline_year$Airline <- airline
+  return(airline_year)
+
+}
+
+airlines_list <- c("American Airlines", "Alaska Airlines", "Delta Air Lines", "United Airlines", "Frontier Airlines")
+df <- data.frame()
+
+for(airline in airlines_list) { # Get the information for a specific year
+  df <- rbind(df, get_airlines_year(airline, 2018))
+}
+
+df_temp <- df %>% filter(month(Date) == 05) %>% # We filtered down the data since the data set was very large, making the boxplot unresponsive. This does impact the results slightly
+  filter(day(Date) == 1) %>% 
+  select(Airline, ARR_DELAY, DEP_DELAY, Date) %>% 
+  filter(DEP_DELAY < 50) %>% filter(DEP_DELAY > -50) %>% 
+  filter(ARR_DELAY < 50) %>% filter(ARR_DELAY > -50) 
+dep_delay <- plot_ly(df_temp, y = ~DEP_DELAY, color = ~Airline, type = "box", colors = c('#00385F', '#d81830', '#9B1631', '#248168', '#005DAA')) 
+
+arr_delay <- plot_ly(df_temp, y = ~ARR_DELAY, color = ~Airline, type = "box", colors = c('#00385F', '#d81830', '#9B1631', '#248168', '#005DAA')) 
+
+```
+`r dep_delay` 
+
+We can see from the boxplot shown above that, on average, Frontier Airlines has more departure delay than other airlines. However the majority of departure delays are within 14 minutes of the scheduled departure time and thus the actual delay is relatively small.
+American Airlines, Delta Air Lines and United Airlines are more consistent in this category since their upper and lower fences are not as far apart, indicating a smaller spread in departure delays. 
+Alaska Airlines is somewhere in between these groups. 
+
+`r arr_delay` 
+
+Looking at the arrival delay we see a similar trend as to the departure delay with Frontier Airlines scoring the worst together. Interesting is that Alaska Airlines scores similar to Frontier Airlines in this category. 
+All major airlines have a similar score. 

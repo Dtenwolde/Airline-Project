@@ -1,0 +1,72 @@
+---
+title: "Interactive map"
+author: "Daniel ten Wolde"
+date: "12/6/2019"
+output: html_document
+---
+
+
+## Airport performance in 2018
+```{r raw_data, echo=FALSE}
+get_coords <- function(airports) {
+  airport_names <- fread('data/L_AIRPORT.csv_') # Get the names of all airports
+  airports_df <- data.frame()
+  for(airport in airports) { # For every airport
+    tryCatch({ # Some airports are not found when using airport_location, we filter these out. 
+      coord <- as.data.frame(airport_location(airport)) # Get the coordinates
+      airport_ <- data.frame("airport" = airport) 
+      airport_ <- merge(airport_, airport_names, by.x = "airport", by.y = "Code") # Merge the information
+      airport_coords <- merge(airport_, coord) # Merge the coordinates
+      airports_df <- rbind(airports_df, airport_coords) # Bind to the list of airports
+    }, error=function(e){})
+  }
+  return(airports_df)
+}
+year <- fread("data/2018.csv")
+df <- year %>% group_by(ORIGIN) %>% tally() # Count the number of departures from every airport
+df <- merge(df, year %>% group_by(ORIGIN) %>% summarise(mean_dep = round(mean(DEP_DELAY, na.rm = TRUE), digits = 2), # Get the average departure and arrival delay per airport
+                                                        mean_arr = round(mean(ARR_DELAY, na.rm = TRUE), digits = 2)))
+df <- mutate(df, mean_overall = rowMeans(select(df, starts_with("mean")), na.rm = TRUE)) # Calculate the average overall delay
+airports <- unique(df$ORIGIN) # Filter out duplicate airports
+
+airports_df_ <- get_coords(airports) # Get the coordinates of every airport
+
+df <- merge(df, airports_df_, by.x = 'ORIGIN', by.y = "airport") # Merge the information
+
+df <- separate(df, col = Description, into = c("Location", "Airport"), sep = ":") # Seperate the Description for better formatting
+
+```
+
+```{r map, echo=FALSE}
+getColor <- function(df_) { # Set the color of every marker depending on the overall average delay
+  sapply(df_$mean_overall, function(dep) {
+  if(as.numeric(dep) >= 15) { # > 15 Red
+    "red"
+  } else if(as.numeric(dep) <= 5) { # <= 5 Green
+    "green"
+  } else { # else Orange
+    "orange"
+  } })
+}
+
+icons <- awesomeIcons( # Set the icons
+  icon = 'ios-close',
+  iconColor = 'black',
+  library = 'ion',
+  markerColor = getColor(df)
+)
+
+leaflet(data = df) %>% addTiles() %>% # Make the interactive map
+  addAwesomeMarkers(~Longitude, ~Latitude, # Add a marker on every coordinate corresponding to an airport
+                    icon=icons, 
+                    popup = paste("Airport:", df$Airport, "<br>", # Set the information when clicking on a marker
+                                  "Location:", df$Location, "<br>",
+                                  "IATA:", df$ORIGIN, "<br>",
+                                  "Number of Departures:", df$n, "<br>",
+                                  "Mean Overall Delay:", df$mean_overall, "min.", "<br>", 
+                                  "Mean Departure Delay:", df$mean_dep, "min.", "<br>",
+                                  "Mean Arrival Delay:", df$mean_arr, "min."), 
+                    clusterOptions = markerClusterOptions())
+```
+
+On this interactive map you can view all American airports. Clicking on a marker will give more information about the airport, this includes On-Time performance and the number of flights in 2018. The color of a marker indicates their On-time performance, ranging from green (good) to red (bad).

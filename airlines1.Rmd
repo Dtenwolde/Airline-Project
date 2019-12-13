@@ -1,0 +1,350 @@
+---
+title: "airlines"
+author: "Daniel ten Wolde"
+date: "12/9/2019"
+output: html_document
+---
+
+## Looking at the history
+
+
+```{r multiple_years_plots, echo=FALSE, warning = FALSE, message = FALSE}
+source("utilFunctions.R")
+library(ggplot2)
+library(dplyr)
+library(dplyr)
+library(lubridate)
+require(data.table) # v1.9.7
+require(feather) # v0.0.0.9000
+require(readr) # v0.2.2
+library(plotly)
+
+get_multiple_years <- function(airlines_list) {
+  airlines <- fread("airlines.csv") # Get the info for all airlines
+  names(airlines) <- c("Airline", "Name", "Alias", "IATA", "ICAO", "Callsign", "Country", "Active")
+  
+  df <- data.frame(ymd("2020-01-01"), "A", "A", 1) # We have a dummy row to set the correct data types. 
+  names(df) <- c("year", "airline", "variable", "value" = numeric())
+  for(i in 1987:2008) {
+    data_year <- fread(paste("data", paste(i, "csv", sep="."), sep="/")) # data/<year>.csv
+    for(airline in airlines_list) { # For every airline 
+      tryCatch ( # TryCatch because some airlines do not exist in the earlier data sets, this would cause an error and halt the execution.
+        {
+          airline_to_use <- airlines %>% filter(Name == airline) # Get the info of the airline 
+      
+          airline_year <- data_year %>% 
+            filter(UniqueCarrier == airline_to_use$IATA) %>% 
+            select(YEAR = Year, # Select only the useful columns
+                   MONTH = Month, 
+                   DAY_OF_MONTH = DayofMonth, 
+                   CANCELLED = Cancelled, 
+                   ARR_DELAY = ArrDelay, 
+                   DEP_DELAY = DepDelay) 
+          airline_year$Airline <- airline # Add the airline name to the data frame
+          airline_year$Date <- ymd(paste(airline_year$YEAR, airline_year$MONTH, airline_year$DAY_OF_MONTH, sep="-")) # Set Date
+          
+    
+          cancelled <- airline_year %>% group_by(Airline) %>% count(state = (CANCELLED == 1)) %>% mutate(perc = n / sum(n)) # Calculate the relative number of cancelled flights
+          
+          cancelled_true <- cancelled %>% filter(state == TRUE)
+          cancelled_false <- cancelled %>% filter(state == FALSE)
+        
+          cancelled_df_perc_true <- make_df(airline_year$Date[1], airline, "cancelled_flight_perc_true", cancelled_true$perc) # Relative value true and false
+          cancelled_df_perc_false <- make_df(airline_year$Date[1], airline, "cancelled_flight_perc_false", cancelled_false$perc)
+          
+          cancelled_df_total_true <- make_df(airline_year$Date[1], airline, "cancelled_flight_true", cancelled_true$n) # Absolute value true and false
+          cancelled_df_total_false <- make_df(airline_year$Date[1], airline, "cancelled_flight_true", cancelled_false$n)
+          
+          # We decided to use relative values mainly because all airlines have a different number of total flights. Since a big airline will have more cancelled flights this might not make a good representation. 
+          
+          cancelled_df <- rbind(cancelled_df_total_false, cancelled_df_total_true, cancelled_df_perc_false, cancelled_df_perc_true)
+          
+          tf_df <- make_df(airline_year$Date[1], airline, "total_flight", airline_year %>% count()) # Get the total number of flights per airline
+          
+          arr_delay <- airline_year %>% summarise(mean = mean(ARR_DELAY, na.rm = TRUE)) # Get the average arrival delay
+          arr_delay_df <- make_df(airline_year$Date[1], airline, "arrival_delay", arr_delay$mean) # Fix the data frame, function can be found in utilFunctions.R
+          
+          dep_delay <- airline_year %>% summarise(mean = mean(DEP_DELAY, na.rm = TRUE)) # Get the average departure delay
+          dep_delay_df <- make_df(airline_year$Date[1], airline, "departure_delay", dep_delay$mean) # Fix the data frame
+         
+          count_month <- count_per_month(airline_year) # Get the number of flights per month
+          count_month_df <- make_df(count_month$year, airline, "total_month", count_month$n)
+          
+          arr_month <- arr_per_month(airline_year) # Get the arrival delay per month
+          arr_month_df <- make_df(arr_month$year, airline, "arr_delay_month", arr_month$mean)
+           
+          dep_month <- dep_per_month(airline_year) # Get the departure delay per month
+          dep_month_df <- make_df(dep_month$year, airline, "dep_delay_month", dep_month$mean)
+          df <- rbind(df, tf_df, cancelled_df, arr_delay_df, dep_delay_df, count_month_df, dep_month_df, arr_month_df) # Bind all data frames together
+        }, error = function(e) {}
+      )
+      
+
+    }
+  }
+  for(i in 2009:2018) {
+    data_year <- fread(paste("data", paste(i, "csv", sep="."), sep="/")) # data/<year>.csv
+    for(airline in airlines_list) {
+      
+      airline_to_use <- airlines %>% filter(Name == airline) # Get the info of the airline, 
+      
+      airline_year <- data_year %>% 
+        filter(OP_CARRIER == airline_to_use$IATA) %>% 
+        select(YEAR, 
+               MONTH, 
+               DAY_OF_MONTH, 
+               CANCELLED, 
+               ARR_DELAY, 
+               DEP_DELAY) # Filter on the airline and variables we need
+      airline_year$Airline <- airline
+      airline_year$Date <- ymd(paste(airline_year$YEAR, airline_year$MONTH, airline_year$DAY_OF_MONTH, sep="-")) # Set Date
+      airline_year$YEAR <- NULL
+      airline_year$MONTH <- NULL
+      airline_year$DAY_OF_MONTH <- NULL
+      
+      
+      cancelled <- airline_year %>% group_by(Airline) %>% count(state = (CANCELLED == 1)) %>% mutate(perc = n / sum(n)) # Calculate the relative number of cancelled flights
+          
+          cancelled_true <- cancelled %>% filter(state == TRUE)
+          cancelled_false <- cancelled %>% filter(state == FALSE)
+        
+          cancelled_df_perc_true <- make_df(airline_year$Date[1], airline, "cancelled_flight_perc_true", cancelled_true$perc) # Relative value true and false
+          cancelled_df_perc_false <- make_df(airline_year$Date[1], airline, "cancelled_flight_perc_false", cancelled_false$perc)
+          
+          cancelled_df_total_true <- make_df(airline_year$Date[1], airline, "cancelled_flight_true", cancelled_true$n) # Absolute value true and false
+          cancelled_df_total_false <- make_df(airline_year$Date[1], airline, "cancelled_flight_true", cancelled_false$n)
+          
+          # We decided to use relative values mainly because all airlines have a different number of total flights. Since a big airline will have more cancelled flights this might not make a good representation. 
+          
+          cancelled_df <- rbind(cancelled_df_total_false, cancelled_df_total_true, cancelled_df_perc_false, cancelled_df_perc_true)
+          
+          tf_df <- make_df(airline_year$Date[1], airline, "total_flight", airline_year %>% count()) # Get the total number of flights per airline
+          
+          arr_delay <- airline_year %>% summarise(mean = mean(ARR_DELAY, na.rm = TRUE)) # Get the average arrival delay
+          arr_delay_df <- make_df(airline_year$Date[1], airline, "arrival_delay", arr_delay$mean) # Fix the data frame, function can be found in utilFunctions.R
+          
+          dep_delay <- airline_year %>% summarise(mean = mean(DEP_DELAY, na.rm = TRUE)) # Get the average departure delay
+          dep_delay_df <- make_df(airline_year$Date[1], airline, "departure_delay", dep_delay$mean) # Fix the data frame
+         
+          count_month <- count_per_month(airline_year) # Get the number of flights per month
+          count_month_df <- make_df(count_month$year, airline, "total_month", count_month$n)
+          
+          arr_month <- arr_per_month(airline_year) # Get the arrival delay per month
+          arr_month_df <- make_df(arr_month$year, airline, "arr_delay_month", arr_month$mean)
+           
+          dep_month <- dep_per_month(airline_year) # Get the departure delay per month
+          dep_month_df <- make_df(dep_month$year, airline, "dep_delay_month", dep_month$mean)
+          df <- rbind(df, tf_df, cancelled_df, arr_delay_df, dep_delay_df, count_month_df, dep_month_df, arr_month_df) # Bind all data frames together
+
+    }
+    
+  }
+  df <- df[-1,] # Remove the dummy row
+  names(df) <- names(dep_delay_df) <- c("year", "airline", "variable", "value") # Fix the data frame names
+  return(df)
+}
+
+plot_multiple_years <- function(data) {
+  can_perc_plot <- ggplot(data %>% filter(variable == "cancelled_flight_perc_true"), # Plot the percentage of cancelled flights
+                          aes(x=year, 
+                              y=value, 
+                              color=airline, 
+                              group=airline, 
+                              text = paste0("Date: ", format(as.Date(year), "%B %Y"), "<br>", # Set the hover text info for plotly
+                                            "Cancelled: ", round(value, digits = 2), "%", "<br>",
+                                            "Airline: ", airline))) + 
+    scale_x_date(date_labels="%Y") + # Make sure the Date column scales properly
+    scale_colour_manual(values = c("#d81830", "#00385F", "#9B1631", "#005DAA", "#248168")) + # Set the colors to the respective airline colors
+    geom_line() + 
+    theme_classic() +
+    labs(x="Date", y="Percentage of cancelled flights", title="Percentage of cancelled flights per year")
+
+  
+  plot_month_total <- ggplot(data %>% filter(variable == "total_month"), # Plot the total number of flights per month
+                             aes(x=year, 
+                                 y=value,
+                                 color=airline,
+                                 group=airline,
+                                 text = paste0("Date: ", format(as.Date(year), "%B %Y"), "<br>", # Set the hover text info for plotly
+                                               "Number of flights: ", value, "<br>",
+                                               "Airline: ", airline))) + 
+    geom_line() + 
+    theme_classic() +
+    scale_colour_manual(values = c("#d81830", "#00385F", "#9B1631", "#005DAA", "#248168")) + # Set the colors to the respective airline colors
+    scale_x_date(date_labels="%m-%Y") + 
+    labs(x="Date", y="Number of flights", title="Number of flights per month")
+
+  
+  plot_arr_month <- ggplot(data %>% filter(variable == "arr_delay_month"),  # Plot the arrival delay per month
+                           aes(x=year, 
+                               y=value, 
+                               group=airline, 
+                               color = airline, 
+                               text = paste0("Date: ", format(as.Date(year), "%B %Y"), "<br>", # Set the hover text info for plotly
+                                             "Mean Arrival Delay: ", round(value, digits = 2), "min.", "<br>",
+                                             "Airline: ", airline))) +
+    geom_line() + 
+    theme_classic() +
+    scale_colour_manual(values = c("#d81830", "#00385F", "#9B1631", "#005DAA", "#248168")) + # Set the colors to the respective airline colors
+    scale_x_date(date_labels="%Y") + 
+    labs(x="Date", y="Average arrival delay in minutes", title="Average arrival delay per month") +
+    geom_hline(yintercept=0, color="red") # Have an intercept line at 0 
+  
+
+  
+  plot_dep_month <- ggplot(data %>% filter(variable == "dep_delay_month"), # Plot the departure delay per month 
+                           aes(x=year, 
+                               y=value, 
+                               color=airline, 
+                               group = airline, 
+                               text = paste0("Date: ", format(as.Date(year), "%B %Y"), "<br>",  # Set the hover text info for plotly
+                                             "Mean Departure Delay: ", round(value, digits = 2), "min.", "<br>", 
+                                             "Airline: ", airline))) +
+    geom_line() + 
+    theme_classic() +
+    scale_colour_manual(values = c("#d81830", "#00385F", "#9B1631", "#005DAA", "#248168")) + # Set the colors to the respective airline colors
+    scale_x_date(date_labels="%Y") + 
+    labs(x="Date", y="Average departure delay in minutes", title="Average departure delay per month") +
+    geom_hline(yintercept=0, color="red") # Have an intercept line at 0 
+
+  return(list("can_perc_plot" = can_perc_plot, # Return all plots
+              "plot_month_total" = plot_month_total, 
+              "plot_arr_month" = plot_arr_month, 
+              "plot_dep_month" = plot_dep_month))
+}
+
+airline_list <- c("American Airlines", "Alaska Airlines", "Delta Air Lines", "United Airlines", "Frontier Airlines")
+
+data <- get_multiple_years(airline_list) # Get all the data
+plots_multiple <- plot_multiple_years(data) # Plot the data
+
+cancelled_plot <- ggplotly(plots_multiple$can_perc_plot, dynamicTicks = TRUE, tooltip = "text") %>% # Convert the plot to plotly to make interactive
+    rangeslider() %>% 
+    layout(hovermode = "x")
+
+total_flights_month_plot <- ggplotly(plots_multiple$plot_month_total, dynamicTicks = TRUE, tooltip = "text") %>% # Convert the plot to plotly to make interactive
+    rangeslider() %>% 
+    layout(hovermode = "x")
+
+dep_delay_month_plot <- ggplotly(plots_multiple$plot_dep_month, dynamicTicks = TRUE, tooltip = "text") %>% # Convert the plot to plotly to make interactive
+  rangeslider() %>%
+  layout(hovermode = "x")
+
+arr_delay_month_plot <- ggplotly(plots_multiple$plot_arr_month, dynamicTicks = TRUE, tooltip = "text") %>% # Convert the plot to plotly to make interactive
+  rangeslider() %>%
+  layout(hovermode = "x")
+
+```
+
+`r total_flights_month_plot`
+
+The graph above shows the number of flights per month and clearly visualizes the size difference between the major airlines (American, Delta and United) and Alaska and Frontier. 
+
+Some notable data points can be observed when looking at this graph. First of all is September 2001 and the impact it had on the number of flights for every airline. We see Delta Air Lines dropping from 74892 flights in August 2001 to 60133 in October 2001. Interesting to note is that it did not seem to impact Alaska Airlines as much as it did Delta, American and United. 
+
+Another interesting point is happens in January 2010. This is when Delta Air Lines has a significant increase in the number of flights per month. This is when Delta Air Lines and Northwest Airlines officially merged and the Northwest brand officially retired. source: https://www.reuters.com/article/us-delta-northwest/delta-buys-northwest-to-create-biggest-airline-idUSTRE49S8BA20081030 
+
+We see a similar thing happening to United Airlines in January 2012 who merged with Continental Airlines. source: https://www.nytimes.com/2010/05/03/business/03merger.html 
+
+We also see the exact point when American Airlines officially merged with US Airways, April 2015. source: https://www.washingtonpost.com/business/the-last-days-of-us-airways/2015/09/25/f5530686-60a6-11e5-8e9e-dce8a2a2a679_story.html 
+
+On a smaller scale we see the merge from Alaska Airlines and Virgin America in April 2018. source: https://blog.alaskaair.com/alaska-airlines/company-news/virgin-america-alaska-single-operating-certificate/ 
+
+`r cancelled_plot`
+
+The most interesting data point is likely January 2000, where there is a sudden spike in the percentage of cancelled flights. It could be the case that the Y2k had influence and airlines preemptively cancelled flights, however we could not find a source on this. 
+As far as the airlines are concerned, American Airlines had the most cancelled flights relatively speaking for a long time, but has been overtaken this year by Frontier Airlines. Frontier had a low amount of cancelled flights for a long time but the percentage has been rising for the last couple of years. 
+At the lower end we see Delta Air Lines having a low amount of cancelled flights.
+
+`r dep_delay_month_plot`
+Looking at the average departure delay in the history we see that since 2010 Alaska Airlines has consistenly had the lowest amount of departure delay. On the other side of the spectrum we find Frontier Airlines, which consistently has had the most average departure delay. Interesting is that the average departure delay has increased since 2017. Whereas before it could be said that Frontier was comparable to American, Delta and United, it has since grown a gap to those other airlines. 
+
+
+`r arr_delay_month_plot`
+As far as the average arrival delay, Alaska and Delta Airlines seem to be the best performing in 2018. Though it should be noted that the airlines seem to be more closely matched in this category. However Frontier is still the worst performing in this category. Also looking throughout the history, Frontier seems to be the airline with the most average arrival delay. Delta and Alaska have the least amount of average arrival delay throughout its history.  
+
+## Cancellation reasons
+
+```{r reason_cancel, echo=FALSE, warning = FALSE, message = FALSE}
+require(data.table) # v1.9.7
+require(feather) # v0.0.0.9000
+require(readr) # v0.2.2
+library(ggplot2)
+library(lubridate)
+library(dplyr)
+library(tidyr)
+library(plotly)
+source("utilFunctions.R")
+
+airline_cancel <- function(airline_name, airline_iata) {
+  year <- fread("data/2018.csv") # Get the data of every airline
+  airline_ <- year %>% filter(OP_CARRIER == as.character(airline_iata)) %>% filter(CANCELLED == 1)
+  total_cancelled <- airline_ %>% select(MONTH, CANCELLATION_CODE) %>% group_by(MONTH) %>% tally()
+
+  tryCatch({
+    cancel_months_a <- data.frame(MONTH = c(1:12)) # For some months there would be missing codes, since those types of cancellations did not occur, still we want those months in our data set to fill up gaps
+    # Thus we merge where the cancellation codes occured and leave the other months at 0
+    cancel_months_a <- merge(cancel_months_a, airline_ %>% select(MONTH, CANCELLATION_CODE) %>% filter(CANCELLATION_CODE == "A") %>% group_by(MONTH) %>% tally(), all = TRUE)
+    cancel_months_a$Code <- "A"
+    
+    cancel_months_b <- data.frame(MONTH = c(1:12))
+    cancel_months_b <- merge(cancel_months_b, airline_ %>% select(MONTH, CANCELLATION_CODE) %>% filter(CANCELLATION_CODE == "B") %>% group_by(MONTH) %>% tally(), all = TRUE)
+    cancel_months_b$Code <- "B"
+    
+    cancel_months_c <- data.frame(MONTH = c(1:12))
+    cancel_months_c <- merge(cancel_months_c, airline_ %>% select(MONTH, CANCELLATION_CODE) %>% filter(CANCELLATION_CODE == "C") %>% group_by(MONTH) %>% tally(), all = TRUE)
+    cancel_months_c$Code <- "C"
+    
+    cancel_months_d <- data.frame(MONTH = c(1:12))
+    cancel_months_d <- merge(cancel_months_d, airline_ %>% select(MONTH, CANCELLATION_CODE) %>% filter(CANCELLATION_CODE == "D") %>% group_by(MONTH) %>% tally(), all = TRUE)
+    cancel_months_d$Code <- "D"
+    
+    cancel_months <- rbind(cancel_months_a, cancel_months_b, cancel_months_c, cancel_months_d) # Bind all codes together
+    
+    
+    
+  }, error = function(e) {
+  })
+  cancel_months <- cancel_months %>% mutate(percentage = n/total_cancelled$n * 100) # Get the relative numbers
+  cancel_description <- fread("data/L_CANCELLATION.csv_")
+  cancel <- merge(cancel_months, cancel_description, by.x = "Code", by.y = "Code") # Merge the code with the Description of the code
+  cancel$Date <- ymd(paste("2018", cancel$MONTH, "01", sep = "-")) # Set the date
+  cancel$Airline <- airline_name
+  return(cancel)
+}
+
+
+
+airlines_list <- c("American Airlines", "Alaska Airlines", "Delta Air Lines", "United Airlines", "Frontier Airlines")
+
+airlines <- get_airline_data_list(airlines_list)
+airlines_cancel_total <- data.frame()
+for(i in 1:nrow(airlines)) { # Get the data for every airline
+  airline_cancel_info <- airline_cancel(airlines[i,2], airlines[i,4]) # Airline name and airline IATA code
+  airlines_cancel_total <- rbind(airlines_cancel_total, airline_cancel_info)
+}
+
+plot2 <- ggplot(data=airlines_cancel_total, aes(x=Date, # Make the cancellation plot
+                                                y=percentage, 
+                                                fill=Description, 
+                                                text = paste0("Date: ", format(as.Date(Date), "%B %Y"), "<br>", # Set the hover text info for plotly
+                                                              "Reason: ", Description, "<br>", 
+                                                              "Percentage: ", round(percentage, digits = 2), "%"))) +
+  geom_bar(stat="identity") +
+  theme_classic() +
+  labs(title = "Number of cancelled flights in 2018", x = "Date", y = "Number of cancelled flights") +
+  facet_wrap(. ~ Airline) # Split up per airline
+  
+  
+cancel_reason_plotly <- ggplotly(plot2, height = 900, width = 1100, tooltip = "text") %>% # COnvert to a plotly plot
+        animation_opts(frame = 200,
+                       easing = "linear",
+                       redraw = FALSE) %>% 
+  config(displayModeBar = F) %>% 
+  layout(xaxis=list(fixedrange=TRUE)) %>% 
+  layout(yaxis=list(fixedrange=TRUE))
+
+```
+`r cancel_reason_plotly` 
+
+From the plot shown above it is difficult to show that one airline is better than the other. On the other hand we do see a pattern across all airlines. During the winter period (December till March) we see that the majority of flight cancellations is due to the weather. This should not really come as a suprise, since bad weather that would influence airlines is more likely during the winter as opposed to the summer. This can be an interesting point to follow up on in future work. 

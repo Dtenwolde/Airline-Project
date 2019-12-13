@@ -1,0 +1,176 @@
+---
+title: "finances"
+author: "Daniel ten Wolde"
+date: "12/11/2019"
+output: html_document
+---
+
+```{r full_time_empl_equiv}
+library(RCurl)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+library(lubridate)
+source("utilFunctions.R")
+
+excel_file <- read_excel("data/Total Full-time Employee Equivalents.xls", skip = 2)
+full_time_equivalent_long <- process_excel_file(excel_file)
+full_time_plot <- ggplot(full_time_equivalent_long, aes(x = Date, y = value, group = Airline, colour = Airline, text = paste0("Date: ", format(as.Date(Date), "%Y"), "<br>", "Total Full-time Employee Equivalent: ", value, "<br>", "Airline: ", Airline))) +
+  geom_line() +
+  theme_classic() + 
+  scale_colour_manual(values = c("#00385F", "#d81830", "#9B1631", "#248168", "#005DAA")) +
+  scale_x_date(date_labels="%Y") +
+  labs(x="Date", y="Total Full-time Employee Equivalent", title="Total Full-Time Employee Equivalent - All Employees")
+
+full_time_plotly <- ggplotly(full_time_plot, dynamicTicks = TRUE, tooltip = "text") %>% 
+    rangeslider() %>% 
+    layout(hovermode = "x")
+
+
+```
+`r full_time_plotly` 
+
+Taking a look at the Total Full-Time Employee equivalent graph, we see a major disparity between the major airlines (American Airlines, Delta Air Lines and United Airlines) and Alaska Airlines and Frontier Airlines. This should not come as a suprise, but it makes a good indication of how much bigger the major airlines are. We also see each major airline increasing this number, Delta in 2010, United in 2012 and America in 2015. This directly corresponds to the merges that each airline made which have been mentioned in an earlier graph. 
+
+```{r}
+library(RCurl)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+library(lubridate)
+source("utilFunctions.R")
+
+excel_file <- read_excel("data/Average Annual Wages and Salaries - All Employees.xls", skip = 4) # Read the excel file
+annual_wages_salaries_long <- process_excel_file(excel_file) # Every excel file had a similar structure, this function can be found in utilFunctions.R
+annual_wages_plot <- ggplot(annual_wages_salaries_long, aes(x = Date, # Plot the annual wages and salary
+                                                            y = value, 
+                                                            group = Airline, 
+                                                            colour = Airline, 
+                                                            text = paste0("Date: ", format(as.Date(Date), "%Y"), "<br>", # Set the hover text info for plotly
+                                                                          "Average Annual Wages and Salaries: ", round(value, digits = 2), "$", "<br>",
+                                                                          "Airline: ", Airline))) +
+  geom_line() +
+  theme_classic() + 
+  scale_x_date(date_labels="%Y") +
+  scale_colour_manual(values = c("#00385F", "#d81830", "#9B1631", "#248168", "#005DAA")) + # Set the colors to the corresponding airline
+  labs(x="Date", y="Average Annual Wages and Salaries", title="Average Annual Wages and Salaries - All Employees")
+
+annual_wages_plotly <- ggplotly(annual_wages_plot, dynamicTicks = TRUE, tooltip = "text") %>% # Convert the plot to plotly
+    rangeslider() %>% 
+    layout(hovermode = "x")
+
+```
+
+`r annual_wages_plotly`
+
+Over time we see that all airlines except Frontier Airlines have had similar annual wages and salaries. Only since 2015 has Frontier closed the wage and salary gap that has existed since the airline started. The highest average wages and salaries can be found at Delta Air Lines and United Airlines.
+
+```{r pension_benefit_package}
+library(RCurl)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+library(lubridate)
+source("utilFunctions.R")
+
+excel_file <- read_excel("data/Average Pension and Benefit Package - ALL EMPLOYEES.xls", skip = 4) # Read the excel file
+pension_benefit_long <- process_excel_file(excel_file) # Process the excel file 
+pension_benefit_plot <- ggplot(pension_benefit_long, aes(x = Date, 
+                                                         y = value, 
+                                                         group = Airline, 
+                                                         colour = Airline, 
+                                                         text = paste0("Date: ", format(as.Date(Date), "%Y"), "<br>",  # Set the hover text info for plotly
+                                                                       "Average Pension and Benefit Package: ", round(value, digits = 2), "$", "<br>",
+                                                                       "Airline: ", Airline))) +
+  geom_line() +
+  theme_classic() + 
+  scale_x_date(date_labels="%Y") +
+  scale_colour_manual(values = c("#00385F", "#d81830", "#9B1631", "#248168", "#005DAA")) +
+  labs(x="Date", y="Average Pension and Benefit", title="Average Pension and Benefit Package - All Employees")
+
+pension_benefit_plotly <- ggplotly(pension_benefit_plot, dynamicTicks = TRUE, tooltip = "text") %>% # Convert to plotly
+    rangeslider() %>% 
+    layout(hovermode = "x")
+```
+`r pension_benefit_plotly`
+
+The graph above shows a fairly similar picture as the graph before. All airlines are comparable to each in terms of the average pension and benefit package, except Frontier who has been significantly behind since the beginning. Whereas Frontier has closed the wages and salaries gap with the other airlines, it does not seem likely to close the pension and benefit package gap in the foreseeable future. 
+
+```{r asm_per_dollar}
+library(RCurl)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+library(lubridate)
+source("utilFunctions.R")
+
+excel_file <- read_excel("data/Total ASMs Produced per Dollar of Employee Compensation.xls", skip = 3) # Read excel file
+asm_per_dollar <- process_excel_file(excel_file) # Process the excel file
+asm_per_dollar_plot <- ggplot(asm_per_dollar, aes(x = Date, 
+                                                  y = value, 
+                                                  group = Airline,
+                                                  colour = Airline, 
+                                                  text = paste0("Date: ", format(as.Date(Date), "%Y"), "<br>", # Set the hover text info for plotly
+                                                                "Total ASMs Produced per Dollar of Employee Compensation: ", round(value, digits = 2), "<br>", 
+                                                                "Airline: ", Airline))) +
+  geom_line() +
+  theme_classic() + 
+  scale_colour_manual(values = c("#00385F", "#d81830", "#9B1631", "#248168", "#005DAA")) + # Set the colors to corresponding airlines
+  scale_x_date(date_labels="%Y") +
+  labs(x="Date", y="Total ASMs Produced per Dollar of Employee Compensation", title="Total ASMs Produced per Dollar of Employee Compensation")
+
+asm_per_dollar_plotly <- ggplotly(asm_per_dollar_plot, dynamicTicks = TRUE, tooltip = "text") %>%  # Conver to plotly
+    rangeslider() %>% 
+    layout(hovermode = "x")
+```
+`r asm_per_dollar_plotly`
+
+ASM = Available Seat Mile, this means one aircraft seat flown one mile. This allows us to make comparisons between airlines that fly different aircrafts for different stage lenghts. 
+
+As can be seen from the graph above, Frontier Airlines has the highest score at 48,95 in 2018 and consistently scores higher than all other airlines. This could indicate that Frontier employees have a higher productivity for their pay rate compared to other airline employees. All other airlines show similar scores indicating equal productivity for their pay rate. This could be due to the fact that Frontier is a Low-Cost Carrier, which means they are more focused on producing more ASM per Dollar. Next to that they do not provide In-Flight Entertainment and Wifi which needs maintenance. The money they save with this might lead to more ASMs. 
+
+
+```{r emp_per_aircraft}
+library(RCurl)
+library(readxl)
+library(dplyr)
+library(tidyr)
+library(ggplot2)
+library(plotly)
+library(lubridate)
+source("utilFunctions.R")
+
+excel_file <- read_excel("data/Passenger, Cargo and Aircraft Handling Employees per Aircraft.xls", skip = 4) # Read excel file
+emp_per_aircraft <- process_excel_file(excel_file) # Process excel file
+emp_per_aircraft_plot <- ggplot(emp_per_aircraft, aes(x = Date, 
+                                                      y = value, 
+                                                      group = Airline, 
+                                                      colour = Airline, 
+                                                      text = paste0("Date: ", format(as.Date(Date), "%Y"), "<br>", # Set the hover text info for plotly
+                                                                    "Employees per Aircraft: ", round(value, digits = 2), "<br>", 
+                                                                    "Airline: ", Airline))) +
+  geom_line() +
+  theme_classic() + 
+  scale_colour_manual(values = c("#00385F", "#d81830", "#9B1631", "#248168", "#005DAA")) + # Set the colors to corresponding airlines
+  scale_x_date(date_labels="%Y") +
+  labs(x="Date", y="Employees per Aircraft", title="Passenger, Cargo and Aircraft Handling Employees per Aircraft")
+
+asm_per_dollar_plotly <- ggplotly(emp_per_aircraft_plot, dynamicTicks = TRUE, tooltip = "text") %>% # Convert to plotly
+    rangeslider() %>% 
+    layout(hovermode = "x")
+
+
+```
+`r asm_per_dollar_plotly`
+
+This last graph shows the number of employees per aircraft. Interesting to note is that since 1995 the average employees per aircraft has gone down*, except for United. It could be the case that United has an older fleet which requires requires more maintenance, howerver we cannot deduce that from this graph alone. 
+
+*We exclude Frontier since they were only a minor airline in 1995 with a small amount of employees. 
